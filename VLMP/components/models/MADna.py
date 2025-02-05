@@ -16,7 +16,7 @@ from scipy.spatial.transform import Rotation
 
 class MADna(modelBase):
     """
-    {"author": "Pablo Ibáñez-Freire",
+    {"author": "Pablo Ibáñez-Freire (modified by S. Assenza on 2023-02-05)",
      "description":
      "MADna model for DNA simulation. This model implements a coarse-grained representation
       of DNA based on the MADna force field, which provides accurate sequence-dependent
@@ -46,12 +46,7 @@ class MADna(modelBase):
         "inputModelData":{"description":"Path to the JSON file containing model parameters. Allows for customization of base model parameters.",
                           "type":"str",
                           "default":"./data/MADna.json"},
-        "debyeLength":{"description":"Debye length for electrostatic interactions. Controls the range of electrostatic forces.",
-                       "type":"float",
-                       "default":10.8},
-        "dielectricConstant":{"description":"Dielectric constant of the medium. Affects the strength of electrostatic interactions.",
-                              "type":"float",
-                              "default":78.3},
+        "ionicStrength": {"description": "ionic strength of the solution (units: mM)", "type": "float", "default": 150 mM},
         "debyeFactor":{"description":"Factor to scale the Debye length. Used to set the cutoff distance for electrostatic interactions.",
                        "type":"float",
                        "default":4.0},
@@ -65,8 +60,7 @@ class MADna(modelBase):
             "type":"MADna",
             "parameters":{
                 "sequence":"ATCGGATCCGAT",
-                "debyeLength":10.8,
-                "dielectricConstant":78.3,
+                "ionicStrength":150,
                 "debyeFactor":4.0,
                 "variant":"fast"
             }
@@ -80,7 +74,7 @@ class MADna(modelBase):
 
     availableParameters = {"sequence",
                            "inputModelData",
-                           "debyeLength","dielectricConstant",
+                           "ionicStrength",
                            "debyeFactor",
                            "variant"}
     requiredParameters  = {"sequence"}
@@ -206,8 +200,13 @@ class MADna(modelBase):
         self.nAtoms = self.seqLen*6-2
 
 
-        self.debyeLength        = params.get("debyeLength",10.8)
-        self.dielectricConstant = params.get("dielectricConstant",78.3)
+        ionicStrength = params.get("ionicStrength", 150.0)
+        Tloc = self.getEnsemble().getEnsembleComponent("temperature")
+        self.dielectricConstant = 5321./Tloc + 233.76 - 0.9297*Tloc + 0.1417*1e-2*Tloc*Tloc - 0.8292*1e-6*Tloc*Tloc*Tloc
+        kBT = self.getUnits().getConstant("KBOLTZ")*Tloc
+        bjerrumLength = 1.6e-19*1.6e-19/(4*np.pi*8.859e-12*self.dielectricConstant*kBT)/4186*6.022e23
+        self.debyeLength= 1./np.sqrt(8*np.pi*bjerrumLength*6.022e23*ionicStrength)*1e10
+
 
         self.debyeFactor = params.get("debyeFactor",4.0)
 
