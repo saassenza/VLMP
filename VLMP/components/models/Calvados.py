@@ -363,22 +363,10 @@ class Calvados(modelBase):
 
         for i,s in enumerate(sequence):
             try:
-                structure["data"].append([i,aminoacids_3to1[s], -1])
+                structure["data"].append([i,aminoacids_3to1[s], 0])
             except:
                 self.logger.error(f"[Calvados3] Aminoacid {s} not recognized")
                 raise Exception("Aminoacid not recognized")
-
-        ### domains: first we assign the modelId for each domain
-        domainCounter = -1
-        for idomain in range(len(domains)):
-            domainCounter += 1
-            for i in domains[idomain]:
-                structure["data"][i][2] = domainCounter
-        ### domains: then, we assign a modelID to each bead in the disordered part
-        for i in range(len(sequence)):
-            if structure["data"][i][2] == -1:
-                domainCounter += 1
-                structure["data"][i][2] = domainCounter
 
         # Forcefield
 
@@ -422,6 +410,8 @@ class Calvados(modelBase):
                         distance = float(np.linalg.norm(pos_i-pos_j))
                         if distance <= 9.0:
                             forcefield["ENM"]["data"].append([i, j, KENM, distance])
+                            exclusions.setdefault(i,[]).append(j)
+                            exclusions.setdefault(j,[]).append(i)
 
         # Interfaces
         if len(interfaces_A)>0:
@@ -450,7 +440,7 @@ class Calvados(modelBase):
         for exc in exclusions:
             exclusions[exc] = sorted(list(set(exclusions[exc])))
         forcefield["nl"] = {}
-        forcefield["nl"]["type"]       = ["VerletConditionalListSet", "nonExclIntra_nonExclInter"]
+        forcefield["nl"]["type"]       = ["VerletConditionalListSet", "nonExcluded"]
         forcefield["nl"]["parameters"] = {"cutOffVerletFactor": cutOffVerletFactor}
         forcefield["nl"]["labels"]     = ["id", "id_list"]
         forcefield["nl"]["data"] = []
@@ -465,7 +455,7 @@ class Calvados(modelBase):
         forcefield["hydrophobic"]["parameters"] = {"cutOffFactor": cutOffLJ/sigma_max,
                                                    "epsilon_r": epsilon,
                                                    "epsilon_a": epsilon,
-                                                   "condition":"inter"}
+                                                   "condition":"nonExcluded"}
         forcefield["hydrophobic"]["labels"] = ["name_i", "name_j", "epsilon", "sigma"]
         forcefield["hydrophobic"]["data"]   = []
 
@@ -481,7 +471,7 @@ class Calvados(modelBase):
         forcefield["DH"]["parameters"] = {"cutOffFactor": cutOffDH/debyeLength,
                                           "debyeLength": debyeLength,
                                           "dielectricConstant": dielectricConstant,
-                                          "condition":"inter"}
+                                          "condition":"nonExcluded"}
 
         ############################################################
 

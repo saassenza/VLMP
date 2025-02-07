@@ -832,69 +832,75 @@ class MADna(modelBase):
         forceField = {}
 
         #NL
-        forceField["nl"] = {}
-        forceField["nl"]["type"]       = ["VerletConditionalListSet", "nonExcluded"]
-        forceField["nl"]["parameters"] = {"cutOffVerletFactor": 1.5}
-        forceField["nl"]["labels"]     = ["id", "id_list"]
-        forceField["nl"]["data"] = []
+        nl_name = 'nl'
+        forceField[nl_name] = {}
+        forceField[nl_name]["type"]       = ["VerletConditionalListSet", "nonExcluded"]
+        forceField[nl_name]["parameters"] = {"cutOffVerletFactor": 1.5}
+        forceField[nl_name]["labels"]     = ["id", "id_list"]
+        forceField[nl_name]["data"] = []
 
         for i in range(self.nAtoms):
-            forceField["nl"]["data"].append([i,self.exclusions[i]])
+            forceField[nl_name]["data"].append([i,self.exclusions[i]])
 
         #WCA
-        forceField["WCA"] = {}
-        forceField["WCA"]["type"]       = ["NonBonded", "WCAType2"]
-        forceField["WCA"]["parameters"] = {"cutOffFactor": 2.5,
+        WCA_name = 'WCA'
+        forceField[WCA_name] = {}
+        forceField[WCA_name]["type"]       = ["NonBonded", "WCAType2"]
+        forceField[WCA_name]["parameters"] = {"cutOffFactor": 2.5,
                                            "condition":"nonExcluded"}
 
-        forceField["WCA"]["labels"] = ["name_i", "name_j", "epsilon", "sigma"]
-        forceField["WCA"]["data"]   = []
+        forceField[WCA_name]["labels"] = ["name_i", "name_j", "epsilon", "sigma"]
+        forceField[WCA_name]["data"]   = []
 
         for t1,info1 in self.model["TYPES"].items():
             for t2,info2 in self.model["TYPES"].items():
-                forceField["WCA"]["data"].append([t1,t2,1.0,info1["radius"]+info2["radius"]])
+                forceField[WCA_name]["data"].append([t1,t2,1.0,info1["radius"]+info2["radius"]])
 
         #DH
-        forceField["DH"] = {}
-        forceField["DH"]["type"]       = ["NonBonded", "DebyeHuckel"]
-        forceField["DH"]["parameters"] = {"cutOffFactor": self.debyeFactor,
+        DH_name = 'DH'
+        forceField[DH_name] = {}
+        forceField[DH_name]["type"]       = ["NonBonded", "DebyeHuckel"]
+        forceField[DH_name]["parameters"] = {"cutOffFactor": self.debyeFactor,
                                           "debyeLength":self.debyeLength,
                                           "dielectricConstant":self.dielectricConstant,
                                           "condition":"nonExcluded"}
 
         #BONDS
-        forceField["BONDS"] = {}
-        forceField["BONDS"]["type"]   = ["Bond2", "Harmonic"]
-        forceField["BONDS"]["parameters"] = {}
-        forceField["BONDS"]["labels"]     = ["id_i", "id_j", "K", "r0"]
-        forceField["BONDS"]["data"]       = []
+        BONDS_name = 'bonds'
+        forceField[BONDS_name] = {}
+        forceField[BONDS_name]["type"]   = ["Bond2", "Harmonic"]
+        forceField[BONDS_name]["parameters"] = {}
+        forceField[BONDS_name]["labels"]     = ["id_i", "id_j", "K", "r0"]
+        forceField[BONDS_name]["data"]       = []
 
         for bnd in self.bonds:
-            forceField["BONDS"]["data"].append([bnd["i"],bnd["j"],
+            forceField[BONDS_name]["data"].append([bnd["i"],bnd["j"],
                                                 self.model["BONDS"][bnd["type"]]["K"],
                                                 self.model["BONDS"][bnd["type"]]["r0"]])
 
         #ANGLES
-        forceField["ANGLES"] = {}
-        forceField["ANGLES"]["type"]   = ["Bond3", "HarmonicAngular"]
-        forceField["ANGLES"]["parameters"] = {}
-        forceField["ANGLES"]["labels"]     = ["id_i", "id_j", "id_k", "K", "theta0"]
-        forceField["ANGLES"]["data"]       = []
+        ANGLES_name = 'angles'
+        forceField[ANGLES_name] = {}
+        forceField[ANGLES_name]["type"]   = ["Bond3", "HarmonicAngular"]
+        forceField[ANGLES_name]["parameters"] = {}
+        forceField[ANGLES_name]["labels"]     = ["id_i", "id_j", "id_k", "K", "theta0"]
+        forceField[ANGLES_name]["data"]       = []
 
         for ang in self.angles:
-            forceField["ANGLES"]["data"].append([ang["i"],ang["j"],ang["k"],
+            forceField[ANGLES_name]["data"].append([ang["i"],ang["j"],ang["k"],
                                                 self.model["ANGLES"][ang["type"]]["K"],
                                                 self.model["ANGLES"][ang["type"]]["theta0"]])
 
         #DIHEDRALS
-        forceField["DIHEDRALS"] = {}
-        forceField["DIHEDRALS"]["type"]   = ["Bond4", "Dihedral"]
-        forceField["DIHEDRALS"]["parameters"] = {}
-        forceField["DIHEDRALS"]["labels"]     = ["id_i", "id_j", "id_k", "id_l", "n", "K", "phi0"]
-        forceField["DIHEDRALS"]["data"]       = []
+        DIHEDRALS_name = 'dihedrals'
+        forceField[DIHEDRALS_name] = {}
+        forceField[DIHEDRALS_name]["type"]   = ["Bond4", "Dihedral"]
+        forceField[DIHEDRALS_name]["parameters"] = {}
+        forceField[DIHEDRALS_name]["labels"]     = ["id_i", "id_j", "id_k", "id_l", "n", "K", "phi0"]
+        forceField[DIHEDRALS_name]["data"]       = []
 
         for dih in self.dihedrals:
-            forceField["DIHEDRALS"]["data"].append([dih["i"],dih["j"],dih["k"],dih["l"],
+            forceField[DIHEDRALS_name]["data"].append([dih["i"],dih["j"],dih["k"],dih["l"],
                                                     1,
                                                     self.model["DIHEDRALS"][dih["type"]]["K"],
                                                     self.model["DIHEDRALS"][dih["type"]]["phi0"]])
@@ -904,8 +910,8 @@ class MADna(modelBase):
 
         if self.variantName == "fast":
 
-            del forceField["WCA"]
-            del forceField["DH"]
+            del forceField[WCA_name]
+            del forceField[DH_name]
 
             PHOSPHATE_DISTANCE = 3.4
 
@@ -917,17 +923,17 @@ class MADna(modelBase):
                 index = self._processSelection(**{"basePairIndex":bp+1,"type":"P"})
                 phosphateIndex_basePair+=[[i,bp+1] for i in index]
 
-            forceField["BONDS_DH"] = {}
-            forceField["BONDS_DH"]["type"]       = ["Bond2", "DebyeHuckel"]
-            forceField["BONDS_DH"]["parameters"] = {}
-            forceField["BONDS_DH"]["labels"]     = ["id_i", "id_j", "chgProduct", "dielectricConstant", "debyeLength", "cutOff"]
-            forceField["BONDS_DH"]["data"]       = []
+            forceField["bonds_DH"] = {}
+            forceField["bonds_DH"]["type"]       = ["Bond2", "DebyeHuckel"]
+            forceField["bonds_DH"]["parameters"] = {}
+            forceField["bonds_DH"]["labels"]     = ["id_i", "id_j", "chgProduct", "dielectricConstant", "debyeLength", "cutOff"]
+            forceField["bonds_DH"]["data"]       = []
 
             chgProduct = self.model["TYPES"]["P"]["charge"]
             chgProduct = chgProduct*chgProduct
             for ph1,ph2 in itertools.combinations(phosphateIndex_basePair,2):
                 if(abs(ph1[1]-ph2[1])<madnafast_n):
-                    forceField["BONDS_DH"]["data"].append([ph1[0],ph2[0],chgProduct,self.dielectricConstant,self.debyeLength,cutOff])
+                    forceField["bonds_DH"]["data"].append([ph1[0],ph2[0],chgProduct,self.dielectricConstant,self.debyeLength,cutOff])
 
         ##################### VARIANT END #####################
         #######################################################
