@@ -72,8 +72,8 @@ class RnaSecondary(modelBase):
         stepSsRna = params.get("stepDsRna", 4.91) # PNAS 109,799 2011 (MEMO: check latest Ritort or thesis in Borja's group)
         sigmaDsRna = params.get("sigmaDsRna", 24.0)
         sigmaSsRna = params.get("sigmaDsRna", 10.0)
-        lpDsRna = params.get("lpDsRna", 67.0)
-        lpSsRna = params.get("lpSsRna", 2.0)
+        lpDsRna = params.get("lpDsRna", 670.0)
+        lpSsRna = params.get("lpSsRna", 20.0)
         isSoft = params.get("isSoft", False)
         psfFile = params.get("psfFile", False)
 
