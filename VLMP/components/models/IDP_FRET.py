@@ -28,7 +28,7 @@ class IDP_FRET(modelBase):
     def __init__(self,name,**params):
         super().__init__(_type = self.__class__.__name__,
                          _name= name,
-                         availableParameters = {"sequence", "coordinates_file", "bonds_file", "angles_file", "dihedrals_file", "domains_file", "interfaces_file_A", "interfaces_file_B", "ionicStrength", "pH", "hydrophobicityScale"},
+                         availableParameters = {"sequence", "coordinates_file", "bonds_file", "angles_file", "dihedrals_file", "domains_file", "interfaces_file_A", "interfaces_file_B", "ionicStrength", "pH", "hydrophobicityScale", "lambdaSoft", "lambdaGroupsFile", "alphaSoft", "nSoft"},
                          requiredParameters  = {"sequence"},
                          definedSelections   = {"particleId"},
                          **params)
@@ -81,6 +81,10 @@ class IDP_FRET(modelBase):
         domains_file = params.get("domains_file", None)
         interfaces_file_A = params.get("interfaces_file_A", None)
         interfaces_file_B = params.get("interfaces_file_B", None)
+        lambdaSoft = params.get("lambdaSoft", 1.0)
+        alphaSoft = params.get("alphaSoft", 0.5)
+        nSoft = params.get("nSoft", 2)
+        lambdaGroupsFile = params.get("lambdaGroupsFile", None)
         
         Tloc = self.getEnsemble().getEnsembleComponent("temperature")
         dielectricConstant = 5321./Tloc + 233.76 - 0.9297*Tloc + 0.1417*1e-2*Tloc*Tloc - 0.8292*1e-6*Tloc*Tloc*Tloc
@@ -150,6 +154,14 @@ class IDP_FRET(modelBase):
             if not os.path.exists(domains_file):
                 self.logger.error(f"[IDP_FRET] Domains file not found (selected: {domains_file})")
                 raise Exception("[IDP_FRET] File not found")
+        if lambdaGroupsFile != None:
+            if not os.path.exists(lambdaGroupsFile):
+                self.logger.error(f"[IDP_FRET] lambdaGroups file not found (selected: {lambdaGroupsFile})")
+                raise Exception("[IDP_FRET] lambdaGroups file not provided")
+        if lambdaSoft != 1.0:
+            if lambdaGroupsFile == None:
+                self.logger.error(f"[IDP_FRET] if lambdaSoft != 1.0 you must provide lambdaGroupsFile")
+                raise Exception("[IDP_FRET] lambdaGroups file not provided")
 
         if coordinates_file != None:
             coordinates = np.loadtxt(coordinates_file)
@@ -322,6 +334,28 @@ class IDP_FRET(modelBase):
         if len(interfaces_A) != len(interfaces_B):
             self.logger.error("[IDP_FRET] Interfaces files must have the same length")
             raise Exception("[IDP_FRET] Incompatible interfaces files")
+        
+        ### import lambdaGroups
+        if lambdaGroupsFile != None:
+            lambdaGroups = []
+            with open(lambdaGroupsFile, 'r') as file:
+                lines = file.readlines()
+                for line in lines:
+                    line_form = line.rsplit()
+                    lambdaGroup_local = []
+                    for field in line_form:
+                        is_range = re.search(r'\d+-\d+', field)
+                        if is_range:  ## detect presence of range
+                            i1 = int(field.rsplit('-')[0])
+                            i2 = int(field.rsplit('-')[1])
+                            for i in range(i1, i2+1):
+                                lambdaGroup_local.append(i)
+                        else:
+                            lambdaGroup_local.append(int(field))
+                    lambdaGroups.append(lambdaGroup_local)
+            if len(lambdaGroups) != 2:
+                self.logger.error("[IDP_FRET] lambdaGroups files must have exactly two lines (one per group)")
+                raise Exception("[IDP_FRET] Wrong format for lambdaGroupFile")
 
         ############################################################
         ######################  Set up model  ######################
@@ -562,6 +596,42 @@ class IDP_FRET(modelBase):
                                           "debyeLength": debyeLength,
                                           "dielectricConstant": dielectricConstant,
                                           "condition":"inter"}
+        
+        ###### ADD SOFT POTENTIAL FOR SELECTED GROUPS, IF SPECIFIED
+        if lambdaGroupsFile != None:
+            forcefield["nl"]["type"]       = ["VerletConditionalListSet", "NonExclIdGroup1Intra_NonExclIdGroup2Intra_NonExclInter_NonExclNoGroup"]
+            forcefield["nl"]["parameters"]["idGroup1"] = lambdaGroups[0]
+            forcefield["nl"]["parameters"]["idGroup2"] = lambdaGroups[1]
+            forcefield["hydrophobic"]["parameters"]["condition"] = "interModels" 
+            forcefield["DH"]["parameters"]["condition"] = "interModels" 
+
+            forcefield["softHydrophobic"] = {}
+            forcefield["softHydrophobic"]["type"]       = ["NonBonded", "softSplitLennardJones"]
+            forcefield["softHydrophobic"]["parameters"] = {
+                    "cutOffFactor": cutOffLJ/sigma_max,
+                    "epsilon_r"   : epsilonRepulsive,
+                    "epsilon_a"   : epsilonAttractive,
+                    "lambda"      : lambdaSoft,
+                    "alpha"       : alphaSoft,
+                    "n"           : nSoft,
+                    "condition"   :"interGroups"}
+            forcefield["softHydrophobic"]["labels"] = ["name_i", "name_j", "epsilon", "sigma"]
+            forcefield["softHydrophobic"]["data"]   = []
+            for t1 in names:
+                for t2 in names:
+                    eps = np.sqrt(hydrophobicity[hydrophobicityScale][t1]["lambda"]*hydrophobicity[hydrophobicityScale][t2]["lambda"])
+                    sigma = 0.5*(hydrophobicity[hydrophobicityScale][t1]["sigma"] + hydrophobicity[hydrophobicityScale][t2]["sigma"])
+                    forcefield["softHydrophobic"]["data"].append([t1,t2,eps,sigma])
+            
+            forcefield["softDH"] = {}
+            forcefield["softDH"]["type"]       = ["NonBonded", "softDH"]
+            forcefield["softDH"]["parameters"] = {
+                    "cutOffFactor"      : cutOffDH/debyeLength,
+                    "debyeLength"       : debyeLength,
+                    "dielectricConstant": dielectricConstant,
+                    "lambda"            : lambdaSoft,
+                    "condition"         :"interGroups"}
+
 
         ############################################################
 

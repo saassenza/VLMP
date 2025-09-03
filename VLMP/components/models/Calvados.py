@@ -28,7 +28,7 @@ class Calvados(modelBase):
     def __init__(self,name,**params):
         super().__init__(_type = self.__class__.__name__,
                          _name= name,
-                         availableParameters = {"sequence", "coordinates_file", "bonds_file", "domains_file", "interfaces_file_A", "interfaces_file_B", "ionicStrength", "pH", "version"},
+                         availableParameters = {"sequence", "coordinates_file", "bonds_file", "domains_file", "interfaces_file_A", "interfaces_file_B", "ionicStrength", "pH", "version", "thresholdInterface", "thresholdDomain"},
                          requiredParameters  = {"sequence"},
                          definedSelections   = {"particleId"},
                          **params)
@@ -131,6 +131,8 @@ class Calvados(modelBase):
         domains_file = params.get("domains_file", None)
         interfaces_file_A = params.get("interfaces_file_A", None)
         interfaces_file_B = params.get("interfaces_file_B", None)
+        thresholdInterface = params.get("thresholdInterface", 9.0)
+        thresholdDomain = params.get("thresholdDomain", 9.0)
         
         Tloc = self.getEnsemble().getEnsembleComponent("temperature")
         dielectricConstant = 5321./Tloc + 233.76 - 0.9297*Tloc + 0.1417*1e-2*Tloc*Tloc - 0.8292*1e-6*Tloc*Tloc*Tloc
@@ -408,7 +410,7 @@ class Calvados(modelBase):
                         pos_i = np.array(coordinates[i])
                         pos_j = np.array(coordinates[j])
                         distance = float(np.linalg.norm(pos_i-pos_j))
-                        if distance <= 9.0:
+                        if distance <= thresholdDomain:
                             forcefield["ENM"]["data"].append([i, j, KENM, distance])
                             exclusions.setdefault(i,[]).append(j)
                             exclusions.setdefault(j,[]).append(i)
@@ -431,7 +433,7 @@ class Calvados(modelBase):
                         pos_i = np.array(coordinates[i])
                         pos_j = np.array(coordinates[j])
                         distance = float(np.linalg.norm(pos_i-pos_j))
-                        if distance <= 9.0:
+                        if distance <= thresholdInterface:
                             forcefield["Interfaces"]["data"].append([i, j, KENM, distance])
                             exclusions.setdefault(i,[]).append(j)
                             exclusions.setdefault(j,[]).append(i)
