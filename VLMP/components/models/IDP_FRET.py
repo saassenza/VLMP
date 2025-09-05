@@ -28,7 +28,7 @@ class IDP_FRET(modelBase):
     def __init__(self,name,**params):
         super().__init__(_type = self.__class__.__name__,
                          _name= name,
-                         availableParameters = {"sequence", "coordinates_file", "bonds_file", "angles_file", "dihedrals_file", "domains_file", "interfaces_file_A", "interfaces_file_B", "ionicStrength", "pH", "hydrophobicityScale", "lambdaSoft", "lambdaGroupsFile", "alphaSoft", "nSoft"},
+                         availableParameters = {"sequence", "coordinates_file", "bonds_file", "angles_file", "dihedrals_file", "domains_file", "interfaces_file_A", "interfaces_file_B", "ionicStrength", "pH", "hydrophobicityScale", "lambdaSoft", "lambdaGroupsFile", "alphaSoft", "nSoft", "isElectro"},
                          requiredParameters  = {"sequence"},
                          definedSelections   = {"particleId"},
                          **params)
@@ -85,6 +85,7 @@ class IDP_FRET(modelBase):
         alphaSoft = params.get("alphaSoft", 0.5)
         nSoft = params.get("nSoft", 2)
         lambdaGroupsFile = params.get("lambdaGroupsFile", None)
+        isElectro = params.get("isElectro", True)
         
         Tloc = self.getEnsemble().getEnsembleComponent("temperature")
         dielectricConstant = 5321./Tloc + 233.76 - 0.9297*Tloc + 0.1417*1e-2*Tloc*Tloc - 0.8292*1e-6*Tloc*Tloc*Tloc
@@ -590,12 +591,14 @@ class IDP_FRET(modelBase):
                 forcefield["hydrophobic"]["data"].append([t1,t2,eps,sigma])
 
         #DH
-        forcefield["DH"] = {}
-        forcefield["DH"]["type"]       = ["NonBonded", "DebyeHuckel"]
-        forcefield["DH"]["parameters"] = {"cutOffFactor": cutOffDH/debyeLength,
-                                          "debyeLength": debyeLength,
-                                          "dielectricConstant": dielectricConstant,
-                                          "condition":"inter"}
+        if isElectro:
+            forcefield["DH"] = {}
+            forcefield["DH"]["type"]       = ["NonBonded", "DebyeHuckel"]
+            forcefield["DH"]["parameters"] = {
+                    "cutOffFactor": cutOffDH/debyeLength,
+                    "debyeLength": debyeLength,
+                    "dielectricConstant": dielectricConstant,
+                    "condition":"inter"}
         
         ###### ADD SOFT POTENTIAL FOR SELECTED GROUPS, IF SPECIFIED
         if lambdaGroupsFile != None:
@@ -603,7 +606,8 @@ class IDP_FRET(modelBase):
             forcefield["nl"]["parameters"]["idGroup1"] = lambdaGroups[0]
             forcefield["nl"]["parameters"]["idGroup2"] = lambdaGroups[1]
             forcefield["hydrophobic"]["parameters"]["condition"] = "interModels" 
-            forcefield["DH"]["parameters"]["condition"] = "interModels" 
+            if isElectro:
+                forcefield["DH"]["parameters"]["condition"] = "interModels" 
 
             forcefield["softHydrophobic"] = {}
             forcefield["softHydrophobic"]["type"]       = ["NonBonded", "softSplitLennardJones"]
@@ -623,14 +627,15 @@ class IDP_FRET(modelBase):
                     sigma = 0.5*(hydrophobicity[hydrophobicityScale][t1]["sigma"] + hydrophobicity[hydrophobicityScale][t2]["sigma"])
                     forcefield["softHydrophobic"]["data"].append([t1,t2,eps,sigma])
             
-            forcefield["softDH"] = {}
-            forcefield["softDH"]["type"]       = ["NonBonded", "softDH"]
-            forcefield["softDH"]["parameters"] = {
-                    "cutOffFactor"      : cutOffDH/debyeLength,
-                    "debyeLength"       : debyeLength,
-                    "dielectricConstant": dielectricConstant,
-                    "lambda"            : lambdaSoft,
-                    "condition"         :"interGroups"}
+            if isElectro:
+                forcefield["softDH"] = {}
+                forcefield["softDH"]["type"]       = ["NonBonded", "softDH"]
+                forcefield["softDH"]["parameters"] = {
+                        "cutOffFactor"      : cutOffDH/debyeLength,
+                        "debyeLength"       : debyeLength,
+                        "dielectricConstant": dielectricConstant,
+                        "lambda"            : lambdaSoft,
+                        "condition"         :"interGroups"}
 
 
         ############################################################
