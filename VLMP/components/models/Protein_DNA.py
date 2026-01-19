@@ -93,7 +93,7 @@ class Protein_DNA(modelBase):
         self.dnaParameters = params.get("dnaParameters")
         
         self.dnaProteinInteraction = params.get("dnaProteinInteraction")
-        if self.dnaProteinInteraction == 'hard':
+        if self.dnaProteinInteraction != 'hard':
             self.dnaProteinInteractionLambda = params.get("lambda")
 
         ############################################################
