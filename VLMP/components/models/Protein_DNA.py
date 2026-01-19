@@ -55,7 +55,7 @@ class Protein_DNA(modelBase):
     """
 
     availableParameters = {"proteinModel","dnaModel",
-                           "proteinParameters","dnaParameters", "dnaProteinInteraction"}
+                           "proteinParameters","dnaParameters", "dnaProteinInteraction", "lambda"}
     requiredParameters = {"proteinModel","dnaModel",
                            "proteinParameters","dnaParameters", "dnaProteinInteraction"}
     definedSelections   = {"DNA","PROTEIN"}
@@ -93,6 +93,8 @@ class Protein_DNA(modelBase):
         self.dnaParameters = params.get("dnaParameters")
         
         self.dnaProteinInteraction = params.get("dnaProteinInteraction")
+        if self.dnaProteinInteraction == 'hard':
+            self.dnaProteinInteractionLambda = params.get("lambda")
 
         ############################################################
         ######################   LOAD MODELS   #####################
@@ -179,6 +181,7 @@ class Protein_DNA(modelBase):
             sim["topology"]["forceField"]["inter_WCA_DH"]["type"] = ["NonBonded","softWCA_DH"]
             sim["topology"]["forceField"]["inter_WCA_DH"]["parameters"]["alpha"] = 1.0
             sim["topology"]["forceField"]["inter_WCA_DH"]["parameters"]["n"] = 1
+            sim["topology"]["forceField"]["inter_WCA_DH"]["parameters"]["lambda"] = self.dnaProteinInteractionLambda
         else:
             self.logger.error("[Protein_DNA] '{:s}' is not a valid option for dnaProteinInteraction parameter. Available choices: 'hard' or 'soft'".format(self.dnaProteinInteraction))
             raise Exception("Wrong parameter")
